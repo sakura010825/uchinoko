@@ -221,6 +221,17 @@ ${normalizedUniqueBehaviors}
         )
       }
     }
+
+    // 429エラー（クォータ超過）の特別処理
+    if (error.status === 429 || error.statusCode === 429 || error.message?.includes("429") || error.message?.includes("quota") || error.message?.includes("Quota exceeded")) {
+      const retryAfter = error.message?.match(/retry in ([\d.]+)s/i)?.[1] || "60"
+      return NextResponse.json(
+        { 
+          error: `Gemini APIの使用制限に達しました。無料プランの制限に達した可能性があります。${retryAfter}秒後に再試行するか、Google AI Studioでクォータを確認してください。詳細: https://ai.google.dev/gemini-api/docs/rate-limits` 
+        },
+        { status: 429 }
+      )
+    }
     
     // 404エラーの場合（モデル名が間違っている可能性）
     if (error.message?.includes("404") || error.status === 404 || error.statusCode === 404) {
