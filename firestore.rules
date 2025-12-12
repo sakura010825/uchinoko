@@ -1,0 +1,67 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // うちの子手帳
+    match /uchinoKoTecho/{techoId} {
+      // 読み込み: 自分のもののみ
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      
+      // 作成: 認証済みユーザーで、userIdが一致する場合のみ
+      allow create: if request.auth != null 
+                   && request.auth.uid == request.resource.data.userId
+                   && request.resource.data.catName is string
+                   && request.resource.data.personality is list
+                   && request.resource.data.tone is string;
+      
+      // 更新: 自分のもののみ
+      allow update: if request.auth != null 
+                   && request.auth.uid == resource.data.userId;
+      
+      // 削除: 自分のもののみ
+      allow delete: if request.auth != null 
+                   && request.auth.uid == resource.data.userId;
+    }
+    
+    // 投稿
+    match /posts/{postId} {
+      // 読み込み: 認証済みユーザーは全員読み込み可能
+      allow read: if request.auth != null;
+      
+      // 作成: 認証済みユーザーで、userIdが一致する場合のみ
+      allow create: if request.auth != null 
+                   && request.auth.uid == request.resource.data.userId
+                   && request.resource.data.catId is string
+                   && request.resource.data.catName is string
+                   && request.resource.data.imageUrl is string
+                   && request.resource.data.aiTranslation is string
+                   && request.resource.data.karikariCount == 0;
+      
+      // 更新: 自分のもののみ
+      allow update: if request.auth != null 
+                   && request.auth.uid == resource.data.userId;
+      
+      // 削除: 自分のもののみ
+      allow delete: if request.auth != null 
+                   && request.auth.uid == resource.data.userId;
+    }
+    
+    // カリカリ（いいね）
+    match /karikari/{karikariId} {
+      // 読み込み: 認証済みユーザーは全員読み込み可能
+      allow read: if request.auth != null;
+      
+      // 作成: 認証済みユーザーで、userIdが一致する場合のみ
+      allow create: if request.auth != null 
+                   && request.auth.uid == request.resource.data.userId
+                   && request.resource.data.postId is string;
+      
+      // 削除: 自分のもののみ
+      allow delete: if request.auth != null 
+                   && request.auth.uid == resource.data.userId;
+    }
+  }
+}
+
+
+
