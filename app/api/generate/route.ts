@@ -20,7 +20,14 @@ async function urlToBase64(imageUrl: string): Promise<string> {
 export async function POST(request: NextRequest) {
   try {
     // デバッグログ: APIキーとモデル名を確認
-    console.log("Using API Key starts with:", process.env.GEMINI_API_KEY?.substring(0, 5))
+    const apiKeyFromEnv = process.env.GEMINI_API_KEY
+    console.log("Environment check:")
+    console.log("- NODE_ENV:", process.env.NODE_ENV)
+    console.log("- VERCEL:", process.env.VERCEL)
+    console.log("- API Key exists:", !!apiKeyFromEnv)
+    console.log("- API Key length:", apiKeyFromEnv?.length || 0)
+    console.log("- API Key starts with:", apiKeyFromEnv?.substring(0, 5) || "N/A")
+    console.log("- API Key ends with:", apiKeyFromEnv?.substring(apiKeyFromEnv?.length - 5) || "N/A")
     console.log("Using Model: gemini-2.0-flash")
     
     const { 
@@ -71,7 +78,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey)
+    const genAI = new GoogleGenerativeAI(trimmedApiKey)
     
     // 画像をBase64に変換
     const imageBase64 = await urlToBase64(imageUrl)
