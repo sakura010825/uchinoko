@@ -181,6 +181,18 @@ ${normalizedUniqueBehaviors}
     console.error("AI生成エラー:", error)
     console.error("エラー詳細:", JSON.stringify(error, null, 2))
     
+    // 403エラー（APIキーが漏洩として報告されている）の特別処理
+    if (error.status === 403 || error.statusCode === 403 || error.message?.includes("403")) {
+      if (error.message?.includes("leaked") || error.message?.includes("reported as leaked")) {
+        return NextResponse.json(
+          { 
+            error: "Gemini APIキーが漏洩として報告されています。新しいAPIキーを取得して、Vercelの環境変数を更新してください。詳細はFIX_LEAKED_API_KEY.mdを参照してください。" 
+          },
+          { status: 403 }
+        )
+      }
+    }
+    
     // 404エラーの場合（モデル名が間違っている可能性）
     if (error.message?.includes("404") || error.status === 404 || error.statusCode === 404) {
       console.error("404エラー詳細:", {
@@ -199,9 +211,14 @@ ${normalizedUniqueBehaviors}
     
     // APIキー関連のエラーの場合、より分かりやすいメッセージを返す
     if (error.message?.includes("API key not valid") || error.message?.includes("API_KEY_INVALID")) {
+      const isProduction = process.env.VERCEL || process.env.NODE_ENV === "production"
+      const errorMessage = isProduction
+        ? "Gemini APIキーが無効です。Vercelの環境変数設定でGEMINI_API_KEYを確認し、正しいAPIキーを設定してください。設定後、再デプロイしてください。"
+        : "Gemini APIキーが無効です。.env.localファイルのGEMINI_API_KEYを確認し、正しいAPIキーを設定してください。設定後、開発サーバーを再起動してください。"
+      
       return NextResponse.json(
         { 
-          error: "Gemini APIキーが無効です。.env.localファイルのGEMINI_API_KEYを確認し、正しいAPIキーを設定してください。設定後、開発サーバーを再起動してください。" 
+          error: errorMessage
         },
         { status: 500 }
       )
