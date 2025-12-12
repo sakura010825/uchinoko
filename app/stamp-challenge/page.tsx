@@ -45,7 +45,7 @@ export default function StampChallengePage() {
       setLoading(false)
     }
     loadData()
-  }, [router])
+  }, [router, toast])
 
   const handleDownload = async () => {
     const user = await getCurrentUser()

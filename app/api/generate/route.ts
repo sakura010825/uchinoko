@@ -59,20 +59,42 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY
     if (!apiKey) {
       console.error("GEMINI_API_KEY環境変数が設定されていません")
+      const isProduction = process.env.VERCEL || process.env.NODE_ENV === "production"
+      const errorMessage = isProduction
+        ? "Gemini APIキーが設定されていません。Vercelの環境変数設定でGEMINI_API_KEYを追加してください。"
+        : "Gemini APIキーが設定されていません。.env.localファイルにGEMINI_API_KEYを設定してください。"
+      
       return NextResponse.json(
         { 
-          error: "Gemini APIキーが設定されていません。.env.localファイルにGEMINI_API_KEYを設定してください。" 
+          error: errorMessage
         },
         { status: 500 }
       )
     }
 
+    // APIキーの前後の空白を削除
+    const trimmedApiKey = apiKey.trim()
+    if (trimmedApiKey !== apiKey) {
+      console.warn("APIキーに前後の空白が含まれていました。自動的に削除しました。")
+    }
+
     // APIキーの形式チェック（簡単な検証）
-    if (apiKey.length < 20) {
-      console.error("GEMINI_API_KEYの形式が正しくない可能性があります")
+    if (trimmedApiKey.length < 20) {
+      console.error("GEMINI_API_KEYの形式が正しくない可能性があります。長さ:", trimmedApiKey.length)
       return NextResponse.json(
         { 
           error: "Gemini APIキーの形式が正しくない可能性があります。正しいAPIキーを設定してください。" 
+        },
+        { status: 500 }
+      )
+    }
+
+    // APIキーが正しい形式か確認（Google APIキーは通常 "AIza" で始まる）
+    if (!trimmedApiKey.startsWith("AIza")) {
+      console.error("GEMINI_API_KEYの形式が正しくない可能性があります。先頭:", trimmedApiKey.substring(0, 4))
+      return NextResponse.json(
+        { 
+          error: "Gemini APIキーの形式が正しくない可能性があります。Google AI Studioで新しいAPIキーを取得してください。" 
         },
         { status: 500 }
       )
