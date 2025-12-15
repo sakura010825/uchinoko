@@ -38,8 +38,8 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-cream/95 backdrop-blur supports-[backdrop-filter]:bg-cream/60">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <Link href="/">
-            <h1 className="text-2xl font-bold text-salmon-300">
+          <Link href="/" className="flex-shrink-0">
+            <h1 className="text-2xl font-bold text-salmon-300 whitespace-nowrap">
               うちの子の気持ち
             </h1>
           </Link>

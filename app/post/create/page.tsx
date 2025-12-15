@@ -294,19 +294,19 @@ export default function CreatePostPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-cream to-cream-50 py-12">
+    <div className="min-h-screen bg-white py-12">
       <div className="container mx-auto px-4 max-w-2xl">
-        <Card>
+        <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="text-2xl">新しい投稿を作成</CardTitle>
+            <CardTitle className="text-2xl text-gray-900">新しい投稿を作成</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* うちの子手帳選択 */}
             {techoList.length > 0 && (
               <div className="space-y-2">
-                <Label>うちの子手帳を選択</Label>
+                <Label className="text-gray-900">うちの子手帳を選択</Label>
                 <select
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                   value={selectedTecho?.id || ""}
                   onChange={(e) => {
                     const techo = techoList.find((t) => t.id === e.target.value)
@@ -324,14 +324,14 @@ export default function CreatePostPage() {
 
             {/* 画像アップロード */}
             <div className="space-y-2">
-              <Label>猫の写真</Label>
-              <p className="text-xs text-charcoal-300">
+              <Label className="text-gray-900">猫の写真</Label>
+              <p className="text-xs text-gray-600">
                 JPG, PNG, GIF, WebP, HEIC形式、5MB以下（HEICは自動でJPEGに変換されます）
               </p>
               {isConverting ? (
                 <div className="border-2 border-dashed border-salmon-200 rounded-lg p-12 text-center">
                   <div className="animate-spin w-8 h-8 border-4 border-salmon-300 border-t-transparent rounded-full mx-auto mb-4"></div>
-                  <p className="text-charcoal-400">HEICファイルを変換中...</p>
+                  <p className="text-gray-600">HEICファイルを変換中...</p>
                 </div>
               ) : previewUrl ? (
                 <div className="relative">
@@ -354,7 +354,7 @@ export default function CreatePostPage() {
                     <X className="h-4 w-4" />
                   </Button>
                   {selectedFile && (
-                    <div className="mt-2 text-sm text-charcoal-400">
+                    <div className="mt-2 text-sm text-gray-600">
                       ファイルサイズ: {formatFileSize(selectedFile.size)}
                     </div>
                   )}
@@ -365,8 +365,8 @@ export default function CreatePostPage() {
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <Upload className="w-12 h-12 text-salmon-300 mx-auto mb-4" />
-                  <p className="text-charcoal-400 mb-2">画像をクリックしてアップロード</p>
-                  <p className="text-xs text-charcoal-300">
+                  <p className="text-gray-700 mb-2">画像をクリックしてアップロード</p>
+                  <p className="text-xs text-gray-600">
                     JPG, PNG, GIF, WebP, HEIC形式、5MB以下
                     <br />
                     （HEICは自動でJPEGに変換されます）
@@ -396,7 +396,7 @@ export default function CreatePostPage() {
                     </div>
                   )}
                 </div>
-                <p className="text-charcoal-400 text-sm">
+                <p className="text-gray-600 text-sm">
                   {isGenerating
                     ? "AIが気持ちを翻訳中..."
                     : "肉球をタップして翻訳開始"}
@@ -407,9 +407,9 @@ export default function CreatePostPage() {
             {/* 翻訳結果 */}
             {translation && (
               <div className="space-y-2">
-                <Label>翻訳結果</Label>
+                <Label className="text-gray-900">翻訳結果</Label>
                 <div className="bg-salmon-50 rounded-lg p-4 border-2 border-salmon-200">
-                  <p className="text-charcoal whitespace-pre-wrap">{translation}</p>
+                  <p className="text-gray-900 whitespace-pre-wrap">{translation}</p>
                 </div>
               </div>
             )}
