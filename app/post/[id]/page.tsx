@@ -183,8 +183,8 @@ export default function PostDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-cream to-cream-50 py-12">
-      <div className="container mx-auto px-4 max-w-3xl">
+    <div className="min-h-screen bg-gradient-to-b from-cream to-cream-50 py-12 overflow-x-hidden w-full max-w-full">
+      <div className="container mx-auto px-4 max-w-3xl w-full">
         <div className="mb-6">
           <Link href="/posts">
             <Button variant="ghost" size="sm">
@@ -195,37 +195,75 @@ export default function PostDetailPage() {
         </div>
 
         <Card className="overflow-hidden">
-          <div className="relative w-full aspect-square bg-cream-50">
-            <Image
-              src={post.imageUrl}
-              alt={`${post.catName}ちゃんの写真`}
-              fill
-              className="object-contain"
-              priority
-              sizes="(max-width: 768px) 100vw, 768px"
-            />
-            {/* 画像の上にコメントをオーバーレイ表示 */}
-            {post.aiTranslation && (
-              <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white p-4 rounded-b-lg">
-                <p className="text-base font-semibold">{post.aiTranslation}</p>
+          <CardContent className="p-0">
+            {/* ヘッダー: タイトル、投稿日、撮影日 */}
+            <div className="p-4 border-b border-gray-200">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1">
+                  <h1 className="text-2xl font-bold text-charcoal mb-2">
+                    {post.catName}ちゃん
+                  </h1>
+                  <div className="flex flex-wrap gap-2 text-sm text-charcoal-300">
+                    <span>
+                      投稿: {new Date(post.createdAt).toLocaleDateString("ja-JP", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </span>
+                    {post.takenAt && (
+                      <span>
+                        Shot at: {new Date(post.takenAt).toLocaleDateString("ja-JP", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {isOwner && (
+                  <div className="flex items-center gap-2">
+                    <Link href={`/post/${post.id}/edit`}>
+                      <Button variant="ghost" size="icon">
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setDeleteDialogOpen(true)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h1 className="text-2xl font-bold text-charcoal mb-2">
-                  {post.catName}ちゃん
-                </h1>
-                <p className="text-sm text-charcoal-300">
-                  {new Date(post.createdAt).toLocaleDateString("ja-JP", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
+            </div>
+
+            {/* メイン: 画像（オーバーレイなし） */}
+            <div className="relative w-full aspect-square bg-cream-50">
+              <Image
+                src={post.imageUrl}
+                alt={`${post.catName}ちゃんの写真`}
+                fill
+                className="object-contain"
+                priority
+                sizes="(max-width: 768px) 100vw, 768px"
+              />
+            </div>
+
+            {/* フッター: 一言コメント、シェアボタン、いいねボタン */}
+            <div className="p-6 space-y-4">
+              {post.aiTranslation && (
+                <div className="bg-salmon-50 rounded-lg p-6 border-2 border-salmon-200">
+                  <p className="text-charcoal whitespace-pre-wrap text-lg leading-relaxed">
+                    {post.aiTranslation}
+                  </p>
+                </div>
+              )}
+              <div className="flex items-center justify-end gap-2">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -249,42 +287,20 @@ export default function PostDetailPage() {
                   }
                   aria-pressed={hasKarikari}
                 >
-                      <Fish
-                        className={`w-6 h-6 transition-all duration-200 ${
-                          animatingKarikari
-                            ? "animate-bounce scale-125"
-                            : hasKarikari 
-                            ? "fill-current text-orange-600 scale-110" 
-                            : "text-orange-500 hover:scale-110"
-                        }`}
-                      />
+                  <Fish
+                    className={`w-6 h-6 transition-all duration-200 ${
+                      animatingKarikari
+                        ? "animate-bounce scale-125"
+                        : hasKarikari 
+                        ? "fill-current text-orange-600 scale-110" 
+                        : "text-orange-500 hover:scale-110"
+                    }`}
+                  />
                   <span className="ml-2" aria-label={`カリカリ数: ${post.karikariCount}`}>
                     {post.karikariCount}
                   </span>
                 </Button>
-                {isOwner && (
-                  <>
-                    <Link href={`/post/${post.id}/edit`}>
-                      <Button variant="ghost" size="icon">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </Link>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeleteDialogOpen(true)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </>
-                )}
               </div>
-            </div>
-            <div className="bg-salmon-50 rounded-lg p-6 border-2 border-salmon-200">
-              <p className="text-charcoal whitespace-pre-wrap text-lg leading-relaxed">
-                {post.aiTranslation}
-              </p>
             </div>
           </CardContent>
         </Card>

@@ -26,9 +26,9 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-cream to-cream-50">
+    <div className="min-h-screen bg-gradient-to-b from-cream to-cream-50 overflow-x-hidden w-full max-w-full">
       {/* メインコンテンツ */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 w-full max-w-full">
         {/* ヒーローセクション */}
         <section className="text-center mb-16">
           <div className="mb-8">
@@ -46,7 +46,7 @@ export default function Home() {
 
           {/* 肉球ボタン */}
           <div className="flex flex-col items-center gap-6 mb-12">
-            <div className="relative w-80 h-80 flex items-center justify-center">
+            <div className="relative w-full max-w-80 h-80 flex items-center justify-center mx-auto">
               <NikukyuButton
                 onClick={handleNikukyuClick}
                 isLoading={isGenerating}
@@ -67,7 +67,7 @@ export default function Home() {
         </section>
 
         {/* 機能紹介セクション */}
-        <section className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+        <section className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16 w-full">
           <Link href={user ? "/techo/create" : "/auth/login"}>
             <div className="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-shadow cursor-pointer">
               <div className="w-12 h-12 bg-salmon-100 rounded-full flex items-center justify-center mb-4">

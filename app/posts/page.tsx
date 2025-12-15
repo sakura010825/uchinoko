@@ -197,8 +197,8 @@ export default function PostsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-cream to-cream-50 py-12">
-      <div className="container mx-auto px-4 max-w-3xl">
+    <div className="min-h-screen bg-gradient-to-b from-cream to-cream-50 py-12 overflow-x-hidden w-full max-w-full">
+      <div className="container mx-auto px-4 max-w-3xl w-full">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-charcoal mb-2">みんなの投稿</h1>
           <p className="text-charcoal-300 mb-4">愛猫たちの気持ちを覗いてみましょう</p>
@@ -218,39 +218,67 @@ export default function PostsPage() {
           <div className="space-y-6">
             {posts.map((post) => (
               <Card key={post.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                <Link href={`/post/${post.id}`}>
-                  <div className="relative w-full aspect-square cursor-pointer bg-cream-50">
-                    <Image
-                      src={post.imageUrl}
-                      alt={`${post.catName}の写真`}
-                      fill
-                      className="object-contain"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      loading="lazy"
-                    />
-                    {/* 画像の上にコメントをオーバーレイ表示 */}
+                <CardContent className="p-0">
+                  {/* ヘッダー: タイトル、投稿日、撮影日 */}
+                  <div className="p-4 border-b border-gray-200">
+                    <div className="flex items-start justify-between gap-2">
+                      <Link href={`/post/${post.id}`} className="flex-1">
+                        <h3 className="text-xl font-semibold text-charcoal hover:text-salmon-300 transition-colors mb-1">
+                          {post.catName}ちゃん
+                        </h3>
+                        <div className="flex flex-wrap gap-2 text-sm text-charcoal-300">
+                          <span>
+                            投稿: {new Date(post.createdAt).toLocaleDateString("ja-JP", {
+                              year: "numeric",
+                              month: "numeric",
+                              day: "numeric",
+                            })}
+                          </span>
+                          {post.takenAt && (
+                            <span>
+                              Shot at: {new Date(post.takenAt).toLocaleDateString("ja-JP", {
+                                year: "numeric",
+                                month: "numeric",
+                                day: "numeric",
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      </Link>
+                    </div>
+                  </div>
+
+                  {/* メイン: 画像（オーバーレイなし） */}
+                  <Link href={`/post/${post.id}`}>
+                    <div className="relative w-full aspect-square cursor-pointer bg-cream-50">
+                      <Image
+                        src={post.imageUrl}
+                        alt={`${post.catName}の写真`}
+                        fill
+                        className="object-contain"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        loading="lazy"
+                      />
+                    </div>
+                  </Link>
+
+                  {/* フッター: 一言コメント、シェアボタン、いいねボタン */}
+                  <div className="p-4 space-y-3">
                     {post.aiTranslation && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white p-3 rounded-b-lg">
-                        <p className="text-sm font-semibold line-clamp-2">{post.aiTranslation}</p>
+                      <div className="bg-salmon-50 rounded-lg p-4 border-2 border-salmon-200">
+                        <p className="text-charcoal whitespace-pre-wrap">
+                          {post.aiTranslation}
+                        </p>
                       </div>
                     )}
-                  </div>
-                </Link>
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <Link href={`/post/${post.id}`} className="flex-1">
-                      <h3 className="text-xl font-semibold text-charcoal hover:text-salmon-300 transition-colors">
-                        {post.catName}ちゃん
-                      </h3>
-                      <p className="text-sm text-charcoal-300">
-                        {new Date(post.createdAt).toLocaleDateString("ja-JP")}
-                      </p>
-                    </Link>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-end gap-2">
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleShare(post)}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          handleShare(post)
+                        }}
                         className="text-charcoal-300"
                         aria-label={`${post.catName}ちゃんの投稿をシェアする`}
                       >
@@ -259,7 +287,10 @@ export default function PostsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleKarikari(post.id)}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          handleKarikari(post.id)
+                        }}
                         className={`transition-all ${
                           karikariStates[post.id]
                             ? "text-orange-600"
@@ -286,11 +317,6 @@ export default function PostsPage() {
                         </span>
                       </Button>
                     </div>
-                  </div>
-                  <div className="bg-salmon-50 rounded-lg p-4 border-2 border-salmon-200">
-                    <p className="text-charcoal whitespace-pre-wrap">
-                      {post.aiTranslation}
-                    </p>
                   </div>
                 </CardContent>
               </Card>

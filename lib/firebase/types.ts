@@ -60,6 +60,7 @@ export interface Post {
   imageUrl: string
   aiTranslation: string
   karikariCount: number
+  takenAt?: Date | null // 撮影日時（Exifから取得、なければnull）
   createdAt: Date
   updatedAt: Date
 }

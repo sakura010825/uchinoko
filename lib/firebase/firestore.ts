@@ -140,13 +140,23 @@ export const createPost = async (
   data: PostCreateData
 ) => {
   try {
-    const docRef = await addDoc(collection(db, "posts"), {
+    const postData: any = {
       ...data,
       userId,
       karikariCount: 0,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
-    })
+    }
+    
+    // takenAtがDateオブジェクトの場合はTimestampに変換
+    if (data.takenAt && data.takenAt instanceof Date) {
+      postData.takenAt = Timestamp.fromDate(data.takenAt)
+    } else if (data.takenAt) {
+      // 文字列の場合はDateに変換してからTimestampに
+      postData.takenAt = Timestamp.fromDate(new Date(data.takenAt))
+    }
+    
+    const docRef = await addDoc(collection(db, "posts"), postData)
     return { id: docRef.id, error: null }
   } catch (error: any) {
     return { id: null, error: error.message }
@@ -168,6 +178,7 @@ export const getPost = async (postId: string) => {
       ...data,
       createdAt: data.createdAt.toDate(),
       updatedAt: data.updatedAt.toDate(),
+      takenAt: data.takenAt ? data.takenAt.toDate() : null,
     } as Post
 
     return { data: post, error: null }
@@ -235,6 +246,7 @@ export const getPosts = async (limitCount: number = 20, startAfter?: any) => {
         ...data,
         createdAt: data.createdAt.toDate(),
         updatedAt: data.updatedAt.toDate(),
+        takenAt: data.takenAt ? data.takenAt.toDate() : null,
       } as Post)
       lastDoc = doc
     })
@@ -264,6 +276,7 @@ export const searchPosts = async (searchTerm: string, limitCount: number = 20) =
         ...data,
         createdAt: data.createdAt.toDate(),
         updatedAt: data.updatedAt.toDate(),
+        takenAt: data.takenAt ? data.takenAt.toDate() : null,
       } as Post
 
       // クライアント側でフィルタリング
@@ -297,6 +310,7 @@ export const getUserPosts = async (userId: string) => {
         ...data,
         createdAt: data.createdAt.toDate(),
         updatedAt: data.updatedAt.toDate(),
+        takenAt: data.takenAt ? data.takenAt.toDate() : null,
       } as Post)
     })
     // クライアント側でソート（新しい順）
@@ -409,6 +423,7 @@ export const getUserPostsForStamps = async (userId: string, limitCount: number =
         ...data,
         createdAt: data.createdAt.toDate(),
         updatedAt: data.updatedAt.toDate(),
+        takenAt: data.takenAt ? data.takenAt.toDate() : null,
       } as Post)
     })
     // クライアント側でソート（新しい順）

@@ -41,9 +41,9 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#FFB6C1" />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.className} overflow-x-hidden`}>
         <Header />
-        <main id="main-content" role="main">
+        <main id="main-content" role="main" className="overflow-x-hidden">
           {children}
         </main>
         <Toaster />

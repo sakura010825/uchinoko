@@ -8,6 +8,7 @@ import { uploadImage } from "@/lib/firebase/storage"
 import { createPost, getUchinoKoTecho } from "@/lib/firebase/firestore"
 import { validateImageFile, formatFileSize } from "@/lib/utils/image-validation"
 import { convertHeicToJpeg, isHeicFile } from "@/lib/utils/heic-converter"
+import { getImageTakenDate } from "@/lib/utils/exif-reader"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -34,6 +35,7 @@ export default function CreatePostPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [isConverting, setIsConverting] = useState(false)
+  const [takenAt, setTakenAt] = useState<Date | null>(null)
 
   // うちの子手帳を読み込む
   useEffect(() => {
@@ -95,10 +97,20 @@ export default function CreatePostPage() {
     const url = URL.createObjectURL(processedFile)
     setPreviewUrl(url)
     setError("")
+
+    // Exif情報から撮影日時を取得
+    try {
+      const takenDate = await getImageTakenDate(processedFile)
+      setTakenAt(takenDate)
+    } catch (error) {
+      console.warn("撮影日時の取得に失敗しました:", error)
+      setTakenAt(null)
+    }
   }
 
   const handleRemoveImage = () => {
     setSelectedFile(null)
+    setTakenAt(null)
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl)
       setPreviewUrl(null)
@@ -252,6 +264,7 @@ export default function CreatePostPage() {
             catName: selectedTecho.catName,
             imageUrl: imageUrl!,
             aiTranslation: translation,
+            takenAt: takenAt || undefined, // Exifから取得した撮影日時、なければundefined
           })
         },
         "create_post"
