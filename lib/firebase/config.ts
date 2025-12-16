@@ -20,18 +20,21 @@ let auth: Auth
 let db: Firestore
 let storage: FirebaseStorage
 
-if (typeof window !== "undefined") {
-  if (!getApps().length) {
-    app = initializeApp(firebaseConfig)
-  } else {
-    app = getApps()[0]
-  }
-  auth = getAuth(app)
-  db = getFirestore(app)
-  storage = getStorage(app)
+if (!getApps().length) {
+  app = initializeApp(firebaseConfig)
+} else {
+  app = getApps()[0]
 }
 
+auth = getAuth(app)
+db = getFirestore(app)
+storage = getStorage(app)
+
 export { auth, db, storage }
+
+
+
+
 
 
 

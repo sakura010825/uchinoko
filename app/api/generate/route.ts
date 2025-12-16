@@ -3,6 +3,15 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { GoogleGenerativeAI } from "@google/generative-ai"
+import { db } from "@/lib/firebase/config"
+import {
+  collection,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  where,
+} from "firebase/firestore"
 
 // 画像をBase64に変換する関数
 async function urlToBase64(imageUrl: string): Promise<string> {
@@ -51,7 +60,7 @@ export async function POST(request: NextRequest) {
       familyMembers,
       // 他のペット情報（追加）
       otherPets,
-      selectedCatId
+      selectedCatId,
     } = await request.json()
 
     if (!imageUrl || !catName) {
@@ -153,6 +162,13 @@ export async function POST(request: NextRequest) {
 
     const normalizedPattern = pattern || "不明"
 
+    // 現在の日時情報（時間帯・季節連動用）
+    const now = new Date()
+    const pad = (n: number) => n.toString().padStart(2, "0")
+    const formattedNow = `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(
+      now.getDate()
+    )} ${pad(now.getHours())}:${pad(now.getMinutes())}`
+
     // 動的コンテキスト構築：人間の家族メンバーと他の猫を統合
     const contextMembers: string[] = []
 
@@ -182,6 +198,46 @@ export async function POST(request: NextRequest) {
     // コンテキストメンバーのテキスト化
     const contextMembersText = contextMembers.length > 0 ? contextMembers.join("\n") : ""
 
+    // 「過去の記憶」用に、この猫の直近投稿（最大5件）を取得
+    let pastMemoriesText = ""
+    if (selectedCatId && db) {
+      try {
+        const postsRef = collection(db, "posts")
+        const q = query(
+          postsRef,
+          where("catId", "==", selectedCatId),
+          orderBy("createdAt", "desc"),
+          limit(5)
+        )
+        const snapshot = await getDocs(q)
+
+        const logs: string[] = []
+        snapshot.forEach((doc) => {
+          const data: any = doc.data()
+          const createdAt = data.createdAt?.toDate
+            ? data.createdAt.toDate()
+            : data.createdAt
+            ? new Date(data.createdAt)
+            : null
+          const text: string = data.aiTranslation || data.comment || ""
+
+          if (!createdAt || !text) return
+
+          const d = createdAt as Date
+          const logDate = `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(
+            d.getHours()
+          )}:${pad(d.getMinutes())}`
+          logs.push(`- [${logDate}] 「${text}」`)
+        })
+
+        if (logs.length > 0) {
+          pastMemoriesText = logs.join("\n")
+        }
+      } catch (memoryError) {
+        console.error("過去の投稿取得中にエラーが発生しました:", memoryError)
+      }
+    }
+
     const prompt = `
 あなたは以下の猫になりきってください。
 
@@ -194,6 +250,15 @@ export async function POST(request: NextRequest) {
 
 【家族・関係性】
 ${familyRelationsText}
+
+【現在情報】
+- 日時: ${formattedNow}
+
+${pastMemoriesText ? `【あなたの記憶（直近の投稿）】
+以下は、あなた（${catName}）の直近の発言ログです。これらを過去の記憶として参照し、もし文脈がつながる場合は「昨日のあれは楽しかった」など、過去を回想するような発言を混ぜてください。
+
+${pastMemoriesText}
+` : ""}
 
 ${contextMembersText ? `【家族メンバーリスト（画像認識用）】
 画像内には、以下の「家族メンバー（人間および同居猫）」が写っている可能性があります。
@@ -221,8 +286,9 @@ ${contextMembersText ? "画像内に写っている人物や他の猫が、上�
 5. 家族・関係性の情報を活用し、適切な呼び方や関係性を表現してください
 6. ${contextMembersText ? "画像内の人物や他の猫が登録された家族メンバーリストの特徴と一致する場合、その相手の名前（例: パパ、ママ、ひなちゃん、さくらちゃん）を呼びかける形でセリフを生成してください。" : ""}
 7. 好きなものや嫌いなもの、特有のクセも考慮してください
-8. **回答には絵文字を一切使用しないこと。絵文字は絶対に含めないでください。**
-9. 猫の表情、姿勢、周囲の環境なども考慮してください
+8. 現在は「${formattedNow}」です。深夜なら「眠い」「まだ起きてるの？」のような発言、朝なら「おはよう」、昼なら「遊ぼう」など、時間帯や季節感（寒そう・暑そう 等）も考慮してください
+9. **回答には絵文字を一切使用しないこと。絵文字は絶対に含めないでください。**
+10. 猫の表情、姿勢、周囲の環境なども考慮してください
 
 上記の設定を忠実に守り、画像の状況に合わせて「この猫なら言いそうなこと」を30文字以内で一言出力してください。絵文字は使用しないでください。
 `
