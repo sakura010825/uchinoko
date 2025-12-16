@@ -160,15 +160,18 @@ export const createPost = async (
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     }
-    
-    // takenAtがDateオブジェクトの場合はTimestampに変換
-    if (data.takenAt && data.takenAt instanceof Date) {
+
+    // takenAt が undefined の場合はフィールドごと削除（Firestore は undefined を許可しない）
+    if (data.takenAt === undefined) {
+      delete postData.takenAt
+    } else if (data.takenAt instanceof Date) {
+      // Dateオブジェクトの場合は Timestamp に変換
       postData.takenAt = Timestamp.fromDate(data.takenAt)
     } else if (data.takenAt) {
-      // 文字列の場合はDateに変換してからTimestampに
+      // 文字列など truthy な値の場合は Date に変換してから Timestamp に
       postData.takenAt = Timestamp.fromDate(new Date(data.takenAt))
     }
-    
+
     const docRef = await addDoc(collection(db, "posts"), postData)
     return { id: docRef.id, error: null }
   } catch (error: any) {

@@ -121,6 +121,12 @@ export default function CreatePostPage() {
   }
 
   const handleGenerateTranslation = async () => {
+    // HEIC変換中は処理を行わない（投稿処理を中断）
+    if (isConverting) {
+      setError("画像を変換中です。完了までお待ちください")
+      return
+    }
+
     if (!selectedFile || !selectedTecho) {
       setError("画像とうちの子手帳を選択してください")
       return
@@ -225,6 +231,12 @@ export default function CreatePostPage() {
   }
 
   const handleSubmit = async () => {
+    // HEIC変換中は投稿処理を行わない
+    if (isConverting) {
+      setError("画像を変換中です。完了までお待ちください")
+      return
+    }
+
     if (!selectedFile || !selectedTecho || !translation) {
       setError("すべての項目を入力してください")
       return
@@ -308,14 +320,15 @@ export default function CreatePostPage() {
             catName: selectedTecho.catName,
             imageUrl: imageUrl!,
             aiTranslation: translation,
-            takenAt: takenAt || undefined, // Exifから取得した撮影日時、なければundefined
+            // Exifから取得した撮影日時。取得できない場合は null として保存
+            takenAt: takenAt ?? null,
           })
         },
         "create_post"
       )
 
       if (postError || !id) {
-        const errorMessage = "投稿の作成に失敗しました"
+        const errorMessage = "投稿の作成に失敗しました: " + (postError || "不明なエラー")
         logError(new Error(errorMessage), { context: "post_creation", error: postError })
         setError(errorMessage)
         toast({
@@ -482,9 +495,9 @@ export default function CreatePostPage() {
               <Button
                 onClick={handleSubmit}
                 className="w-full"
-                disabled={loading}
+                disabled={loading || isConverting}
               >
-                {loading ? "投稿中..." : "投稿する"}
+                {loading || isConverting ? "投稿中..." : "投稿する"}
               </Button>
             )}
           </CardContent>
