@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { getCurrentUser } from "@/lib/firebase/auth"
 import { uploadImage } from "@/lib/firebase/storage"
-import { createPost, getUchinoKoTecho } from "@/lib/firebase/firestore"
+import { createPost, getUchinoKoTecho, getFamilyMembers } from "@/lib/firebase/firestore"
 import { validateImageFile, formatFileSize } from "@/lib/utils/image-validation"
 import { convertHeicToJpeg, isHeicFile } from "@/lib/utils/heic-converter"
 import { getImageTakenDate } from "@/lib/utils/exif-reader"
@@ -154,6 +154,13 @@ export default function CreatePostPage() {
       // アップロード済みURLを保存
       setUploadedImageUrl(imageUrl)
 
+      // 家族メンバー情報（人間）を取得
+      const { data: familyMembers } = await getFamilyMembers(user.uid)
+
+      // 他のペット（主役を除く）を取得
+      const { data: allPets } = await getUchinoKoTecho(user.uid)
+      const otherPets = allPets?.filter(pet => pet.id !== selectedTecho.id) || []
+
       // AI生成APIを呼び出し
       const response = await fetch("/api/generate", {
         method: "POST",
@@ -181,6 +188,12 @@ export default function CreatePostPage() {
           favoriteThings: selectedTecho.favoriteThings || "",
           dislikeThings: selectedTecho.dislikeThings || "",
           quirks: selectedTecho.quirks || "",
+          // 家族メンバーの外見特徴情報（人間）
+          familyMembers: familyMembers || [],
+          // 他のペット（主役を除く）の情報
+          otherPets: otherPets,
+          // 主役の猫のID（除外用）
+          selectedCatId: selectedTecho.id,
         }),
       })
 
@@ -231,19 +244,50 @@ export default function CreatePostPage() {
       // 画像URLを取得（既にアップロード済みの場合はそれを使用）
       let imageUrl = uploadedImageUrl
       if (!imageUrl && selectedFile) {
-        const timestamp = Date.now()
-        const imagePath = `posts/${user.uid}/${timestamp}_${selectedFile.name}`
-        const { url, error: uploadError } = await uploadImage(
-          selectedFile,
-          imagePath
-        )
+        // HEICファイルがまだ変換されていない場合は変換を試みる
+        let fileToUpload = selectedFile
+        if (isHeicFile(selectedFile)) {
+          try {
+            setIsConverting(true)
+            fileToUpload = await convertHeicToJpeg(selectedFile)
+            setSelectedFile(fileToUpload)
+            // プレビューURLも更新
+            if (previewUrl) {
+              URL.revokeObjectURL(previewUrl)
+            }
+            const newPreviewUrl = URL.createObjectURL(fileToUpload)
+            setPreviewUrl(newPreviewUrl)
+            setIsConverting(false)
+          } catch (convertError: any) {
+            setIsConverting(false)
+            setError("HEICファイルの変換に失敗しました: " + (convertError.message || "不明なエラー"))
+            setLoading(false)
+            return
+          }
+        }
 
-        if (uploadError || !url) {
-          setError("画像のアップロードに失敗しました")
+        const timestamp = Date.now()
+        // ファイル名を安全に処理（HEICの場合は既に.jpgに変換済み）
+        const safeFileName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, "_")
+        const imagePath = `posts/${user.uid}/${timestamp}_${safeFileName}`
+        
+        try {
+          const { url, error: uploadError } = await uploadImage(
+            fileToUpload,
+            imagePath
+          )
+
+          if (uploadError || !url) {
+            setError("画像のアップロードに失敗しました: " + (uploadError || "不明なエラー"))
+            setLoading(false)
+            return
+          }
+          imageUrl = url
+        } catch (uploadErr: any) {
+          setError("画像のアップロード中にエラーが発生しました: " + (uploadErr.message || "不明なエラー"))
           setLoading(false)
           return
         }
-        imageUrl = url
       }
 
       if (!imageUrl) {

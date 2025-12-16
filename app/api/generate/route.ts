@@ -46,7 +46,12 @@ export async function POST(request: NextRequest) {
       tone,
       favoriteThings,
       dislikeThings,
-      quirks
+      quirks,
+      // 家族メンバーの外見特徴情報
+      familyMembers,
+      // 他のペット情報（追加）
+      otherPets,
+      selectedCatId
     } = await request.json()
 
     if (!imageUrl || !catName) {
@@ -148,6 +153,35 @@ export async function POST(request: NextRequest) {
 
     const normalizedPattern = pattern || "不明"
 
+    // 動的コンテキスト構築：人間の家族メンバーと他の猫を統合
+    const contextMembers: string[] = []
+
+    // 人間の家族メンバー
+    if (familyMembers && Array.isArray(familyMembers) && familyMembers.length > 0) {
+      const validMembers = familyMembers.filter((fm: any) => fm.name && fm.appearanceFeatures)
+      validMembers.forEach((fm: any) => {
+        contextMembers.push(`- 名前: ${fm.name} (人間) / 特徴: ${fm.appearanceFeatures}`)
+      })
+    }
+
+    // 他の猫（主役を除く）
+    if (otherPets && Array.isArray(otherPets) && otherPets.length > 0) {
+      const validPets = otherPets.filter((pet: any) => 
+        pet.catName && (pet.appearanceFeatures || pet.pattern)
+      )
+      validPets.forEach((pet: any) => {
+        const features = pet.appearanceFeatures 
+          ? pet.appearanceFeatures 
+          : pet.pattern 
+            ? `柄: ${pet.pattern}` 
+            : "特徴なし"
+        contextMembers.push(`- 名前: ${pet.catName} (猫) / 特徴: ${features}`)
+      })
+    }
+
+    // コンテキストメンバーのテキスト化
+    const contextMembersText = contextMembers.length > 0 ? contextMembers.join("\n") : ""
+
     const prompt = `
 あなたは以下の猫になりきってください。
 
@@ -161,6 +195,13 @@ export async function POST(request: NextRequest) {
 【家族・関係性】
 ${familyRelationsText}
 
+${contextMembersText ? `【家族メンバーリスト（画像認識用）】
+画像内には、以下の「家族メンバー（人間および同居猫）」が写っている可能性があります。
+特徴が一致するメンバーがいる場合、その相手に向けたセリフを生成してください。
+
+${contextMembersText}
+` : ""}
+
 【好き嫌い】
 - 好き: ${normalizedLikes}
 - 嫌い: ${normalizedDislikes}
@@ -170,6 +211,7 @@ ${normalizedUniqueBehaviors}
 
 【画像の内容】
 写真を見て、この猫が今何を考えているか、どんな気持ちかを判断してください。
+${contextMembersText ? "画像内に写っている人物や他の猫が、上記の家族メンバーリストの特徴と一致する場合は、その相手（名前）に向けたセリフを生成してください。" : ""}
 
 【重要】以下の条件を厳格に守ってください：
 1. 生成するコメントは必ず30文字以内の短い一言にしてください
@@ -177,9 +219,10 @@ ${normalizedUniqueBehaviors}
 3. 口調タイプ「${normalizedToneType}」の雰囲気を忠実に再現してください（例：小学生男子風なら「〜だぜ！」「〜なんだ！」など）
 4. 性格「${normalizedPersonality}」を反映した、その猫らしい発言にしてください
 5. 家族・関係性の情報を活用し、適切な呼び方や関係性を表現してください
-6. 好きなものや嫌いなもの、特有のクセも考慮してください
-7. **回答には絵文字を一切使用しないこと。絵文字は絶対に含めないでください。**
-8. 猫の表情、姿勢、周囲の環境なども考慮してください
+6. ${contextMembersText ? "画像内の人物や他の猫が登録された家族メンバーリストの特徴と一致する場合、その相手の名前（例: パパ、ママ、ひなちゃん、さくらちゃん）を呼びかける形でセリフを生成してください。" : ""}
+7. 好きなものや嫌いなもの、特有のクセも考慮してください
+8. **回答には絵文字を一切使用しないこと。絵文字は絶対に含めないでください。**
+9. 猫の表情、姿勢、周囲の環境なども考慮してください
 
 上記の設定を忠実に守り、画像の状況に合わせて「この猫なら言いそうなこと」を30文字以内で一言出力してください。絵文字は使用しないでください。
 `

@@ -27,9 +27,12 @@ import type {
   Karikari,
   ApiResponse,
   FirestoreResult,
+  FamilyMember,
+  FamilyMemberCreateData,
+  FamilyMemberUpdateData,
 } from "./types"
 
-// うちの子手帳関連
+// うちの子手帳関連（サブコレクション構造: users/{uid}/pets）
 export const createUchinoKoTecho = async (
   userId: string,
   data: Omit<UchinoKoTecho, "id" | "userId" | "createdAt" | "updatedAt">
@@ -52,7 +55,10 @@ export const createUchinoKoTecho = async (
       firestoreData.birthDate = null
     }
 
-    const docRef = await addDoc(collection(db, "uchinoKoTecho"), firestoreData)
+    // サブコレクションに保存: users/{uid}/pets
+    const userRef = doc(db, "users", userId)
+    const petsCollection = collection(userRef, "pets")
+    const docRef = await addDoc(petsCollection, firestoreData)
     return { id: docRef.id, error: null }
   } catch (error: any) {
     return { id: null, error: error.message }
@@ -61,10 +67,14 @@ export const createUchinoKoTecho = async (
 
 export const updateUchinoKoTecho = async (
   id: string,
-  data: UchinoKoTechoUpdateData
+  data: UchinoKoTechoUpdateData,
+  userId: string
 ) => {
   try {
-    const docRef = doc(db, "uchinoKoTecho", id)
+    // サブコレクション構造: users/{uid}/pets/{id}
+    const userRef = doc(db, "users", userId)
+    const petRef = doc(userRef, "pets", id)
+    
     // birthDateをTimestampに変換
     const updateData: any = {
       ...data,
@@ -80,7 +90,7 @@ export const updateUchinoKoTecho = async (
       }
     }
 
-    await updateDoc(docRef, updateData)
+    await updateDoc(petRef, updateData)
     return { error: null }
   } catch (error: any) {
     return { error: error.message }
@@ -89,11 +99,11 @@ export const updateUchinoKoTecho = async (
 
 export const getUchinoKoTecho = async (userId: string) => {
   try {
-    const q = query(
-      collection(db, "uchinoKoTecho"),
-      where("userId", "==", userId)
-    )
-    const querySnapshot = await getDocs(q)
+    // サブコレクション構造: users/{uid}/pets
+    const userRef = doc(db, "users", userId)
+    const petsCollection = collection(userRef, "pets")
+    const querySnapshot = await getDocs(petsCollection)
+    
     const techoList: UchinoKoTecho[] = []
     querySnapshot.forEach((doc) => {
       const data = doc.data()
@@ -111,10 +121,12 @@ export const getUchinoKoTecho = async (userId: string) => {
   }
 }
 
-export const getUchinoKoTechoById = async (id: string) => {
+export const getUchinoKoTechoById = async (id: string, userId: string) => {
   try {
-    const docRef = doc(db, "uchinoKoTecho", id)
-    const docSnap = await getDoc(docRef)
+    // サブコレクション構造: users/{uid}/pets/{id}
+    const userRef = doc(db, "users", userId)
+    const petRef = doc(userRef, "pets", id)
+    const docSnap = await getDoc(petRef)
     
     if (!docSnap.exists()) {
       return { data: null, error: "うちの子手帳が見つかりません" }
@@ -124,6 +136,7 @@ export const getUchinoKoTechoById = async (id: string) => {
     const techo: UchinoKoTecho = {
       id: docSnap.id,
       ...data,
+      birthDate: data.birthDate ? (data.birthDate instanceof Timestamp ? data.birthDate.toDate() : new Date(data.birthDate)) : null,
       createdAt: data.createdAt.toDate(),
       updatedAt: data.updatedAt.toDate(),
     } as UchinoKoTecho
@@ -484,6 +497,79 @@ export const deletePost = async (postId: string, userId: string, imageUrl: strin
     return { data: undefined, error: null }
   } catch (error: any) {
     return { data: undefined, error: error.message }
+  }
+}
+
+// 家族メンバー関連（サブコレクション構造: users/{uid}/familyMembers）
+export const createFamilyMember = async (
+  userId: string,
+  data: FamilyMemberCreateData
+) => {
+  try {
+    const userRef = doc(db, "users", userId)
+    const familyMembersCollection = collection(userRef, "familyMembers")
+    const firestoreData = {
+      ...data,
+      userId,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    }
+    const docRef = await addDoc(familyMembersCollection, firestoreData)
+    return { id: docRef.id, error: null }
+  } catch (error: any) {
+    return { id: null, error: error.message }
+  }
+}
+
+export const getFamilyMembers = async (userId: string) => {
+  try {
+    const userRef = doc(db, "users", userId)
+    const familyMembersCollection = collection(userRef, "familyMembers")
+    const querySnapshot = await getDocs(familyMembersCollection)
+    
+    const members: FamilyMember[] = []
+    querySnapshot.forEach((doc) => {
+      const data = doc.data()
+      members.push({
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt.toDate(),
+        updatedAt: data.updatedAt.toDate(),
+      } as FamilyMember)
+    })
+    return { data: members, error: null }
+  } catch (error: any) {
+    return { data: null, error: error.message }
+  }
+}
+
+export const updateFamilyMember = async (
+  id: string,
+  userId: string,
+  data: FamilyMemberUpdateData
+) => {
+  try {
+    const userRef = doc(db, "users", userId)
+    const memberRef = doc(userRef, "familyMembers", id)
+    const updateData = {
+      ...data,
+      updatedAt: Timestamp.now(),
+    }
+    await updateDoc(memberRef, updateData)
+    return { error: null }
+  } catch (error: any) {
+    return { error: error.message }
+  }
+}
+
+export const deleteFamilyMember = async (id: string, userId: string) => {
+  try {
+    const userRef = doc(db, "users", userId)
+    const memberRef = doc(userRef, "familyMembers", id)
+    await deleteDoc(memberRef)
+    return { error: null }
+  } catch (error: any) {
+    return { error: error.message }
   }
 }
 

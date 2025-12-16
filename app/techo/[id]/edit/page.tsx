@@ -77,6 +77,7 @@ export default function EditTechoPage() {
   const [dislikes, setDislikes] = useState("")
   const [uniqueBehaviors, setUniqueBehaviors] = useState("")
   const [birthDate, setBirthDate] = useState("")
+  const [appearanceFeatures, setAppearanceFeatures] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
@@ -89,7 +90,7 @@ export default function EditTechoPage() {
         return
       }
 
-      const { data, error } = await getUchinoKoTechoById(techoId)
+      const { data, error } = await getUchinoKoTechoById(techoId, user.uid)
       if (error || !data) {
         setError("うちの子手帳の取得に失敗しました")
         setInitialLoading(false)
@@ -105,6 +106,7 @@ export default function EditTechoPage() {
       setLikes(data.likes || data.favoriteThings || "")
       setDislikes(data.dislikes || data.dislikeThings || "")
       setUniqueBehaviors(data.uniqueBehaviors || data.quirks || "")
+      setAppearanceFeatures(data.appearanceFeatures || "")
       // 誕生日の設定（Dateオブジェクトの場合は文字列に変換）
       if (data.birthDate) {
         const birthDateValue = data.birthDate instanceof Date 
@@ -186,6 +188,15 @@ export default function EditTechoPage() {
       return
     }
 
+    // 誕生日の処理: 空文字列の場合はnull、有効な日付文字列の場合はDateオブジェクトに変換
+    let birthDateValue: Date | null = null
+    if (birthDate && birthDate.trim()) {
+      const parsedDate = new Date(birthDate)
+      if (!isNaN(parsedDate.getTime())) {
+        birthDateValue = parsedDate
+      }
+    }
+
     const { error: updateError } = await updateUchinoKoTecho(techoId, {
       catName: catName.trim(),
       pattern,
@@ -196,8 +207,9 @@ export default function EditTechoPage() {
       likes: String(likes || "").trim(),
       dislikes: String(dislikes || "").trim(),
       uniqueBehaviors: String(uniqueBehaviors || "").trim(),
-      birthDate: birthDate ? new Date(birthDate) : null,
-    })
+      birthDate: birthDateValue,
+      appearanceFeatures: String(appearanceFeatures || "").trim(),
+    }, user.uid)
 
     if (updateError) {
       setError("うちの子手帳の更新に失敗しました")
@@ -303,6 +315,23 @@ export default function EditTechoPage() {
                 />
                 <p className="text-xs text-gray-500">
                   誕生日がわからない場合は未入力でも問題ありません
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="appearanceFeatures" className="text-gray-900 font-semibold text-base">
+                  外見の特徴（AI認識用）
+                </Label>
+                <Input
+                  id="appearanceFeatures"
+                  type="text"
+                  placeholder="例: サビ猫、小柄、青い目 / 白猫、長毛、オッドアイ"
+                  value={appearanceFeatures}
+                  onChange={(e) => setAppearanceFeatures(e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900 focus:border-pink-400 focus:ring-2 focus:ring-pink-200 h-12 text-base"
+                />
+                <p className="text-xs text-gray-500">
+                  AIが写真内の猫を認識するために使用します。カンマ区切りで複数の特徴を入力できます（例: サビ猫、小柄、青い目）
                 </p>
               </div>
 

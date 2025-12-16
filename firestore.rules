@@ -2,7 +2,48 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // うちの子手帳
+    // うちの子手帳（サブコレクション構造: users/{uid}/pets）
+    match /users/{userId}/pets/{petId} {
+      // 読み込み: 自分のもののみ
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // 作成: 認証済みユーザーで、userIdが一致する場合のみ
+      allow create: if request.auth != null 
+                   && request.auth.uid == userId
+                   && request.resource.data.catName is string
+                   && request.resource.data.personality is list
+                   && (request.resource.data.toneType is string || request.resource.data.tone is string);
+      
+      // 更新: 自分のもののみ
+      allow update: if request.auth != null 
+                   && request.auth.uid == userId;
+      
+      // 削除: 自分のもののみ
+      allow delete: if request.auth != null 
+                   && request.auth.uid == userId;
+    }
+    
+    // 家族メンバー（サブコレクション構造: users/{uid}/familyMembers）
+    match /users/{userId}/familyMembers/{memberId} {
+      // 読み込み: 自分のもののみ
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // 作成: 認証済みユーザーで、userIdが一致する場合のみ
+      allow create: if request.auth != null 
+                   && request.auth.uid == userId
+                   && request.resource.data.name is string
+                   && request.resource.data.appearanceFeatures is string;
+      
+      // 更新: 自分のもののみ
+      allow update: if request.auth != null 
+                   && request.auth.uid == userId;
+      
+      // 削除: 自分のもののみ
+      allow delete: if request.auth != null 
+                   && request.auth.uid == userId;
+    }
+    
+    // 後方互換性のため、既存のuchinoKoTechoコレクションも残す（既存データ用）
     match /uchinoKoTecho/{techoId} {
       // 読み込み: 自分のもののみ
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
@@ -62,6 +103,9 @@ service cloud.firestore {
     }
   }
 }
+
+
+
 
 
 

@@ -26,6 +26,7 @@ export interface UchinoKoTecho {
   dislikes: string // 嫌いなもの（自由記述）
   uniqueBehaviors: string // その子特有のクセ・エピソード（自由記述）
   birthDate?: Date | string | null // 誕生日（任意項目）
+  appearanceFeatures?: string // AI認識用の外見特徴（例: サビ猫、小柄、青い目）
   // 後方互換性のためのフィールド（既存データとの互換性）
   callingOwner?: string // 飼い主の呼び方（非推奨、familyRelationsに移行）
   tone?: string // 口調（非推奨、toneTypeに移行）
@@ -119,3 +120,28 @@ export interface ImageDeleteResult {
   success: boolean
   error: string | null
 }
+
+/**
+ * 家族メンバーの型定義（外見特徴登録用）
+ */
+export interface FamilyMember {
+  id: string
+  userId: string
+  name: string // 呼び名（例: "パパ", "ママ", "お兄ちゃん"）
+  appearanceFeatures: string // 外見の特徴（例: "メガネ、短髪、ヒゲ", "長髪、優しい顔"）
+  createdAt: Date
+  updatedAt: Date
+}
+
+/**
+ * 家族メンバーの作成用データ型
+ */
+export type FamilyMemberCreateData = Omit<
+  FamilyMember,
+  "id" | "userId" | "createdAt" | "updatedAt"
+>
+
+/**
+ * 家族メンバーの更新用データ型
+ */
+export type FamilyMemberUpdateData = Partial<FamilyMemberCreateData>

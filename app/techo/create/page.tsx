@@ -73,42 +73,9 @@ export default function CreateTechoPage() {
   const [dislikes, setDislikes] = useState("")
   const [uniqueBehaviors, setUniqueBehaviors] = useState("")
   const [birthDate, setBirthDate] = useState("")
+  const [appearanceFeatures, setAppearanceFeatures] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const [existingTecho, setExistingTecho] = useState<any>(null)
-
-  // 既存のうちの子手帳を確認
-  useEffect(() => {
-    const checkExisting = async () => {
-      const user = await getCurrentUser()
-      if (user) {
-        const { data } = await getUchinoKoTecho(user.uid)
-        if (data && data.length > 0) {
-          setExistingTecho(data[0])
-          const techo = data[0]
-          setCatName(techo.catName || "")
-          setPattern(techo.pattern || "")
-          setPersonality(Array.isArray(techo.personality) ? techo.personality : techo.personality ? [techo.personality] : [])
-          setFirstPerson(techo.firstPerson || "")
-          setToneType(techo.toneType || techo.tone || "")
-          setFamilyRelations(techo.familyRelations && techo.familyRelations.length > 0 ? techo.familyRelations : [{ name: "", relation: "" }])
-          setLikes(techo.likes || techo.favoriteThings || "")
-          setDislikes(techo.dislikes || techo.dislikeThings || "")
-          setUniqueBehaviors(techo.uniqueBehaviors || techo.quirks || "")
-          // 誕生日の設定（Dateオブジェクトの場合は文字列に変換）
-          if (techo.birthDate) {
-            const birthDateValue = techo.birthDate instanceof Date 
-              ? techo.birthDate.toISOString().split('T')[0]
-              : typeof techo.birthDate === 'string'
-              ? techo.birthDate.split('T')[0]
-              : ""
-            setBirthDate(birthDateValue)
-          }
-        }
-      }
-    }
-    checkExisting()
-  }, [])
 
   const handlePersonalityToggle = (option: string) => {
     setPersonality((prev) =>
@@ -178,6 +145,15 @@ export default function CreateTechoPage() {
       return
     }
 
+    // 誕生日の処理: 空文字列の場合はnull、有効な日付文字列の場合はDateオブジェクトに変換
+    let birthDateValue: Date | null = null
+    if (birthDate && birthDate.trim()) {
+      const parsedDate = new Date(birthDate)
+      if (!isNaN(parsedDate.getTime())) {
+        birthDateValue = parsedDate
+      }
+    }
+
     const data = {
       catName: catName.trim(),
       pattern,
@@ -188,41 +164,25 @@ export default function CreateTechoPage() {
       likes: String(likes || "").trim(),
       dislikes: String(dislikes || "").trim(),
       uniqueBehaviors: String(uniqueBehaviors || "").trim(),
-      birthDate: birthDate ? new Date(birthDate) : null,
+      birthDate: birthDateValue,
+      appearanceFeatures: String(appearanceFeatures || "").trim(),
     }
 
-    if (existingTecho) {
-      const { updateUchinoKoTecho } = await import("@/lib/firebase/firestore")
-      const { error: updateError } = await updateUchinoKoTecho(existingTecho.id, data)
+    const { id, error: createError } = await createUchinoKoTecho(user.uid, data)
 
-      if (updateError) {
-        setError("うちの子手帳の更新に失敗しました")
-        setLoading(false)
-        return
-      }
-
-      toast({
-        variant: "success",
-        title: "更新完了",
-        description: "うちの子手帳を更新しました",
-      })
-    } else {
-      const { id, error: createError } = await createUchinoKoTecho(user.uid, data)
-
-      if (createError || !id) {
-        setError("うちの子手帳の作成に失敗しました")
-        setLoading(false)
-        return
-      }
-
-      toast({
-        variant: "success",
-        title: "作成完了",
-        description: "うちの子手帳を作成しました",
-      })
+    if (createError || !id) {
+      setError("うちの子手帳の作成に失敗しました")
+      setLoading(false)
+      return
     }
 
-    router.push("/post/create")
+    toast({
+      variant: "success",
+      title: "作成完了",
+      description: "うちの子手帳を作成しました",
+    })
+
+    router.push("/techo")
     router.refresh()
   }
 
@@ -233,7 +193,7 @@ export default function CreateTechoPage() {
           <div className="flex items-center gap-3 mb-2">
             <BookOpen className="w-8 h-8 text-pink-500" />
             <h1 className="text-3xl font-bold text-gray-900">
-              {existingTecho ? "うちの子手帳を編集" : "うちの子手帳を作成"}
+              うちの子手帳を作成
             </h1>
           </div>
           <p className="text-gray-700 text-lg">
@@ -298,6 +258,23 @@ export default function CreateTechoPage() {
                 />
                 <p className="text-xs text-gray-500">
                   誕生日がわからない場合は未入力でも問題ありません
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="appearanceFeatures" className="text-gray-900 font-semibold text-base">
+                  外見の特徴（AI認識用）
+                </Label>
+                <Input
+                  id="appearanceFeatures"
+                  type="text"
+                  placeholder="例: サビ猫、小柄、青い目 / 白猫、長毛、オッドアイ"
+                  value={appearanceFeatures}
+                  onChange={(e) => setAppearanceFeatures(e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900 focus:border-pink-400 focus:ring-2 focus:ring-pink-200 h-12 text-base"
+                />
+                <p className="text-xs text-gray-500">
+                  AIが写真内の猫を認識するために使用します。カンマ区切りで複数の特徴を入力できます（例: サビ猫、小柄、青い目）
                 </p>
               </div>
 
@@ -491,13 +468,7 @@ export default function CreateTechoPage() {
             className="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-6 text-lg shadow-md"
             disabled={loading}
           >
-            {loading
-              ? existingTecho
-                ? "更新中..."
-                : "作成中..."
-              : existingTecho
-              ? "うちの子手帳を更新"
-              : "うちの子手帳を作成"}
+            {loading ? "作成中..." : "うちの子手帳を作成"}
           </Button>
         </form>
       </div>

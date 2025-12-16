@@ -28,16 +28,16 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-cream to-cream-50 overflow-x-hidden w-full max-w-full">
       {/* メインコンテンツ */}
-      <main className="container mx-auto px-4 py-8 w-full max-w-full">
+      <main className="w-full max-w-full px-4 py-8 mx-auto">
         {/* ヒーローセクション */}
         <section className="text-center mb-16">
           <div className="mb-8">
-            <h2 className="text-5xl font-bold text-charcoal mb-4">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-charcoal mb-4 px-4">
               愛猫の気持ちを
               <br />
               <span className="text-salmon-300">翻訳</span>してみませんか？
             </h2>
-            <p className="text-xl text-charcoal-300 mt-6 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg lg:text-xl text-charcoal-300 mt-6 max-w-2xl mx-auto px-4">
               写真を投稿するだけで、AIが猫の気持ちを代弁してくれます。
               <br />
               「うちの子手帳」で性格を登録すれば、もっと正確な翻訳が可能に。
@@ -67,7 +67,7 @@ export default function Home() {
         </section>
 
         {/* 機能紹介セクション */}
-        <section className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16 w-full">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-16 w-full max-w-full">
           <Link href={user ? "/techo/create" : "/auth/login"}>
             <div className="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-shadow cursor-pointer">
               <div className="w-12 h-12 bg-salmon-100 rounded-full flex items-center justify-center mb-4">
@@ -127,33 +127,33 @@ export default function Home() {
 
         {/* CTAセクション */}
         {!user && (
-          <section className="bg-gradient-to-r from-salmon-100 to-mint-100 rounded-3xl p-12 text-center">
-            <h2 className="text-3xl font-bold text-charcoal mb-4">
+          <section className="bg-gradient-to-r from-salmon-100 to-mint-100 rounded-3xl p-6 sm:p-12 text-center w-full max-w-full">
+            <h2 className="text-2xl sm:text-3xl font-bold text-charcoal mb-4">
               さっそく始めてみましょう
             </h2>
-            <p className="text-charcoal-400 mb-8">
+            <p className="text-charcoal-400 mb-6 sm:mb-8 text-sm sm:text-base">
               無料で登録して、愛猫の気持ちを翻訳してみてください
             </p>
-            <div className="flex gap-4 justify-center">
-              <Link href="/auth/signup">
-                <Button size="lg" className="bg-salmon hover:bg-salmon-200">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center w-full sm:w-auto">
+              <Link href="/auth/signup" className="w-full sm:w-auto">
+                <Button size="lg" className="bg-salmon hover:bg-salmon-200 w-full sm:w-auto">
                   新規登録
                 </Button>
               </Link>
-              <Link href="/auth/login">
+              <Link href="/auth/login" className="w-full sm:w-auto">
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-charcoal-300"
+                  className="border-charcoal-300 w-full sm:w-auto"
                 >
                   ログイン
                 </Button>
               </Link>
-              <Link href="/posts">
+              <Link href="/posts" className="w-full sm:w-auto">
                 <Button
                   size="lg"
                   variant="secondary"
-                  className="bg-mint hover:bg-mint-200"
+                  className="bg-mint hover:bg-mint-200 w-full sm:w-auto"
                 >
                   投稿を見る
                 </Button>
@@ -164,7 +164,7 @@ export default function Home() {
       </main>
 
       {/* フッター */}
-      <footer className="container mx-auto px-4 py-8 mt-16 border-t border-charcoal-100">
+      <footer className="w-full max-w-full px-4 py-8 mt-16 border-t border-charcoal-100 mx-auto">
         <p className="text-center text-charcoal-300 text-sm">
           © 2024 うちの子の気持ち. All rights reserved.
         </p>
