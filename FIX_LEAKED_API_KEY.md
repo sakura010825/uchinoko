@@ -112,3 +112,13 @@ npm run dev
 - [Gemini API ドキュメント](https://ai.google.dev/docs)
 - [Vercel 環境変数](https://vercel.com/docs/concepts/projects/environment-variables)
 
+
+
+
+
+
+
+
+
+
+
