@@ -134,7 +134,14 @@ export async function POST(request: NextRequest) {
 
     // Gemini 2.0 Flash を使用（multimodal対応、画像入力可能）
     // モデル名は "gemini-2.0-flash" を指定
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" })
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.0-flash-exp", // ※お使いのモデル名のままでOK
+      generationConfig: {
+        temperature: 1.2,       // 創造性を上げる（0.0〜2.0。1.0以上でユニークになります）
+        topP: 0.95,             // 文章の多様性を確保
+        maxOutputTokens: 100,   // 短い一言なので制限をつける
+      },
+    });
 
     // データの正規化（後方互換性対応）
     const normalizedPersonality = Array.isArray(personality) 
