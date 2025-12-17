@@ -69,3 +69,12 @@ export function getOmikujiColorClass(color: string): string {
 
 
 
+
+
+
+
+
+
+
+
+
