@@ -9,6 +9,23 @@ export const uploadImage = async (
   path: string
 ): Promise<ImageUploadResult> => {
   try {
+    // HEIC/HEIFファイルがここまで到達している場合は想定外なのでログを出力
+    const lowerName = file.name.toLowerCase()
+    const lowerType = file.type.toLowerCase()
+    const isHeicLike =
+      lowerName.endsWith(".heic") ||
+      lowerName.endsWith(".heif") ||
+      lowerType === "image/heic" ||
+      lowerType === "image/heif"
+
+    if (isHeicLike) {
+      console.error("[uploadImage] HEIC/HEIFファイルがアップロードされようとしています。事前変換ロジックを確認してください。", {
+        name: file.name,
+        type: file.type,
+        path,
+      })
+    }
+
     const storageRef = ref(storage, path)
     const snapshot = await uploadBytes(storageRef, file)
     const url = await getDownloadURL(snapshot.ref)
