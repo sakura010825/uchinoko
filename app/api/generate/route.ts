@@ -23,6 +23,9 @@ export async function POST(req: Request) {
       normalizedUniqueBehaviors,
     } = await req.json();
 
+    console.log("--- DEBUG: 受信データチェック ---");
+    console.log("image の中身があるか:", !!image);
+
     const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
@@ -31,9 +34,22 @@ export async function POST(req: Request) {
       );
     }
 
-    // 画像データの処理 (data:image/xxx;base64, の部分を除去)
-    const base64Data = image.includes("base64,") ? image.split(",")[1] : image;
-    const mimeType = image.includes(";") ? image.split(";")[0].split(":")[1] : "image/jpeg";
+    // --- 画像データの処理（URLならダウンロード、Base64ならそのまま処理） ---
+    let base64Data = '';
+    let mimeType = 'image/jpeg';
+
+    if (image.startsWith('http')) {
+      // URLの場合：画像をダウンロードしてBase64に変換
+      const imageResponse = await fetch(image);
+      const arrayBuffer = await imageResponse.arrayBuffer();
+      base64Data = Buffer.from(arrayBuffer).toString('base64');
+      mimeType = imageResponse.headers.get('content-type') || 'image/jpeg';
+    } else {
+      // すでにBase64データの場合
+      base64Data = image.includes("base64,") ? image.split(",")[1] : image;
+      mimeType = image.includes(";") ? image.split(";")[0].split(":")[1] : "image/jpeg";
+    }
+    // --------------------------------------------------------------
 
     const genAI = new GoogleGenerativeAI(apiKey);
 

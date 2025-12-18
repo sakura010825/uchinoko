@@ -10,7 +10,6 @@ import { validateImageFile, formatFileSize } from "@/lib/utils/image-validation"
 import { convertHeicToJpeg, isHeicFile } from "@/lib/utils/heic-converter"
 import { getImageTakenDate } from "@/lib/utils/exif-reader"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { NikukyuButton } from "@/components/nikukyu-button"
@@ -25,6 +24,9 @@ export default function CreatePostPage() {
   const router = useRouter()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // --- ステート定義 ---
+  const [user, setUser] = useState<any>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
@@ -37,98 +39,77 @@ export default function CreatePostPage() {
   const [isConverting, setIsConverting] = useState(false)
   const [takenAt, setTakenAt] = useState<Date | null>(null)
 
-  // うちの子手帳を読み込む
+  // 1. ユーザー情報とうちの子手帳を読み込む
   useEffect(() => {
-    const loadTecho = async () => {
-      const user = await getCurrentUser()
-      if (user) {
-        const { data, error } = await getUchinoKoTecho(user.uid)
+    const initPage = async () => {
+      const currentUser = await getCurrentUser()
+      if (currentUser) {
+        setUser(currentUser)
+        const { data, error } = await getUchinoKoTecho(currentUser.uid)
         if (data && data.length > 0) {
           setTechoList(data)
           setSelectedTecho(data[0])
         } else {
-          // うちの子手帳がない場合は作成ページに誘導
           router.push("/techo/create")
         }
       } else {
         router.push("/auth/login")
       }
     }
-    loadTecho()
+    initPage()
   }, [router])
 
+  // 2. ファイル選択処理
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // バリデーション実行
     const validation = validateImageFile(file)
-    
     if (!validation.valid) {
       setError(validation.error || "画像ファイルを選択してください")
-      // ファイル入力をリセット
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""
-      }
       return
     }
 
-    // HEICファイルの場合は変換
     let processedFile = file
     if (isHeicFile(file)) {
       setIsConverting(true)
-      setError("")
       try {
         processedFile = await convertHeicToJpeg(file)
-        setError("")
-      } catch (error: any) {
-        setError("HEICファイルの変換に失敗しました: " + (error.message || "不明なエラー"))
+      } catch (err: any) {
+        setError("HEIC変換失敗: " + err.message)
         setIsConverting(false)
-        if (fileInputRef.current) {
-          fileInputRef.current.value = ""
-        }
         return
       }
       setIsConverting(false)
     }
 
-    // 処理済みファイルを使用
     setSelectedFile(processedFile)
-    const url = URL.createObjectURL(processedFile)
-    setPreviewUrl(url)
+    setUploadedImageUrl(null) // 新しい画像を選んだらアップロード済みURLをリセット
+    setPreviewUrl(URL.createObjectURL(processedFile))
     setError("")
 
-    // Exif情報から撮影日時を取得
     try {
-      const takenDate = await getImageTakenDate(processedFile)
-      setTakenAt(takenDate)
-    } catch (error) {
-      console.warn("撮影日時の取得に失敗しました:", error)
+      const date = await getImageTakenDate(processedFile)
+      setTakenAt(date)
+    } catch (err) {
       setTakenAt(null)
     }
   }
 
+  // 3. 画像の削除
   const handleRemoveImage = () => {
     setSelectedFile(null)
-    setTakenAt(null)
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl)
-      setPreviewUrl(null)
-    }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
-    }
+    setUploadedImageUrl(null)
+    setTranslation("")
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
+  // 4. 【肉球翻訳】AI生成処理
   const handleGenerateTranslation = async () => {
-    // HEIC変換中は処理を行わない（投稿処理を中断）
-    if (isConverting) {
-      setError("画像を変換中です。完了までお待ちください")
-      return
-    }
-
-    if (!selectedFile || !selectedTecho) {
-      setError("画像とうちの子手帳を選択してください")
+    if (!selectedFile || !selectedTecho || !user) {
+      setError("画像と手帳を選択してください")
       return
     }
 
@@ -136,229 +117,81 @@ export default function CreatePostPage() {
     setError("")
 
     try {
-      // 画像をアップロード
-      const user = await getCurrentUser()
-      if (!user) {
-        setError("ログインが必要です")
-        setIsGenerating(false)
-        return
+      // 翻訳のためにまず画像をFirebaseにアップロードしてURLを取得する
+      let currentImageUrl = uploadedImageUrl
+      if (!currentImageUrl) {
+        const timestamp = Date.now()
+        const path = `posts/${user.uid}/${timestamp}_${selectedFile.name}`
+        const { url, error: uploadError } = await uploadImage(selectedFile, path)
+        if (uploadError || !url) throw new Error(uploadError || "アップロード失敗")
+        currentImageUrl = url
+        setUploadedImageUrl(url)
       }
 
-      const timestamp = Date.now()
-      const imagePath = `posts/${user.uid}/${timestamp}_${selectedFile.name}`
-      const { url: imageUrl, error: uploadError } = await uploadImage(
-        selectedFile,
-        imagePath
-      )
-
-      if (uploadError || !imageUrl) {
-        setError("画像のアップロードに失敗しました")
-        setIsGenerating(false)
-        return
-      }
-
-      // アップロード済みURLを保存
-      setUploadedImageUrl(imageUrl)
-
-      // 家族メンバー情報（人間）を取得
+      // 家族情報と他のペット情報を取得
       const { data: familyMembers } = await getFamilyMembers(user.uid)
-
-      // 他のペット（主役を除く）を取得
       const { data: allPets } = await getUchinoKoTecho(user.uid)
-      const otherPets = allPets?.filter(pet => pet.id !== selectedTecho.id) || []
+      const otherPets = allPets?.filter((pet: any) => pet.id !== selectedTecho.id) || []
 
-      // AI生成APIを呼び出し
+      // API呼び出し
       const response = await fetch("/api/generate", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          imageUrl,
+          image: currentImageUrl,
           catName: selectedTecho.catName,
-          pattern: selectedTecho.pattern || "",
-          personality: Array.isArray(selectedTecho.personality) 
-            ? selectedTecho.personality 
-            : selectedTecho.personality 
-            ? [selectedTecho.personality] 
-            : [],
-          firstPerson: selectedTecho.firstPerson || "",
-          toneType: selectedTecho.toneType || selectedTecho.tone || "",
-          familyRelations: selectedTecho.familyRelations || [],
-          likes: selectedTecho.likes || selectedTecho.favoriteThings || "",
-          dislikes: selectedTecho.dislikes || selectedTecho.dislikeThings || "",
-          uniqueBehaviors: selectedTecho.uniqueBehaviors || selectedTecho.quirks || "",
-          // 後方互換性のためのフィールド
-          callingOwner: selectedTecho.callingOwner || "",
-          tone: selectedTecho.tone || "",
-          favoriteThings: selectedTecho.favoriteThings || "",
-          dislikeThings: selectedTecho.dislikeThings || "",
-          quirks: selectedTecho.quirks || "",
-          // 家族メンバーの外見特徴情報（人間）
+          catPattern: selectedTecho.pattern || "",
+          normalizedPersonality: Array.isArray(selectedTecho.personality) 
+            ? selectedTecho.personality.join("、") 
+            : selectedTecho.personality || "マイペース",
+          normalizedFirstPerson: selectedTecho.firstPerson || "私",
+          normalizedToneType: selectedTecho.toneType || selectedTecho.tone || "普通",
+          normalizedLikes: selectedTecho.likes || "特になし",
+          normalizedDislikes: selectedTecho.dislikes || "特になし",
+          normalizedUniqueBehaviors: selectedTecho.uniqueBehaviors || "特になし",
           familyMembers: familyMembers || [],
-          // 他のペット（主役を除く）の情報
-          otherPets: otherPets,
-          // 主役の猫のID（除外用）
+          otherPets: otherPets || [],
           selectedCatId: selectedTecho.id,
         }),
       })
 
       const data = await response.json()
+      if (data.error) throw new Error(data.error)
 
-      if (data.error) {
-        setError(data.error)
-        setIsGenerating(false)
-        return
-      }
-
-          setTranslation(data.translation)
-          setIsGenerating(false)
-          toast({
-            variant: "success",
-            title: "翻訳完了",
-            description: "AIが猫の気持ちを翻訳しました",
-          })
-        } catch (error: any) {
-          const errorMessage = "翻訳の生成に失敗しました: " + error.message
-          setError(errorMessage)
-          toast({
-            variant: "destructive",
-            title: "エラー",
-            description: errorMessage,
-          })
-          setIsGenerating(false)
-        }
+      setTranslation(data.result)
+      toast({ title: "翻訳完了", description: "猫の気持ちを翻訳しました" })
+    } catch (err: any) {
+      setError("翻訳失敗: " + err.message)
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
+  // 5. 最終投稿処理
   const handleSubmit = async () => {
-    // HEIC変換中は投稿処理を行わない
-    if (isConverting) {
-      setError("画像を変換中です。完了までお待ちください")
-      return
-    }
-
-    if (!selectedFile || !selectedTecho || !translation) {
-      setError("すべての項目を入力してください")
+    if (!uploadedImageUrl || !selectedTecho || !translation) {
+      setError("翻訳を行ってから投稿してください")
       return
     }
 
     setLoading(true)
-    setError("")
-
     try {
-      const user = await getCurrentUser()
-      if (!user) {
-        setError("ログインが必要です")
-        setLoading(false)
-        return
-      }
-
-      // 画像URLを取得（既にアップロード済みの場合はそれを使用）
-      let imageUrl = uploadedImageUrl
-      if (!imageUrl && selectedFile) {
-        // HEICファイルがまだ変換されていない場合は変換を試みる
-        let fileToUpload = selectedFile
-        if (isHeicFile(selectedFile)) {
-          try {
-            setIsConverting(true)
-            fileToUpload = await convertHeicToJpeg(selectedFile)
-            setSelectedFile(fileToUpload)
-            // プレビューURLも更新
-            if (previewUrl) {
-              URL.revokeObjectURL(previewUrl)
-            }
-            const newPreviewUrl = URL.createObjectURL(fileToUpload)
-            setPreviewUrl(newPreviewUrl)
-            setIsConverting(false)
-          } catch (convertError: any) {
-            setIsConverting(false)
-            setError("HEICファイルの変換に失敗しました: " + (convertError.message || "不明なエラー"))
-            setLoading(false)
-            return
-          }
-        }
-
-        const timestamp = Date.now()
-        // ファイル名を安全に処理（HEICの場合は既に.jpgに変換済み）
-        const safeFileName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, "_")
-        const imagePath = `posts/${user.uid}/${timestamp}_${safeFileName}`
-        
-        try {
-          const { url, error: uploadError } = await uploadImage(
-            fileToUpload,
-            imagePath
-          )
-
-          if (uploadError || !url) {
-            setError("画像のアップロードに失敗しました: " + (uploadError || "不明なエラー"))
-            setLoading(false)
-            return
-          }
-          imageUrl = url
-        } catch (uploadErr: any) {
-          setError("画像のアップロード中にエラーが発生しました: " + (uploadErr.message || "不明なエラー"))
-          setLoading(false)
-          return
-        }
-      }
-
-      if (!imageUrl) {
-        setError("画像が選択されていません")
-        setLoading(false)
-        return
-      }
-
-      // 投稿を作成
-      logEvent("post_creation_started", {
+      const { id, error: postError } = await createPost(user.uid, {
+        catId: selectedTecho.id,
         catName: selectedTecho.catName,
+        imageUrl: uploadedImageUrl,
+        aiTranslation: translation,
+        takenAt: takenAt ?? null,
       })
 
-      const { id, error: postError } = await measureApiCall(
-        async () => {
-          return createPost(user.uid, {
-            catId: selectedTecho.id,
-            catName: selectedTecho.catName,
-            imageUrl: imageUrl!,
-            aiTranslation: translation,
-            // Exifから取得した撮影日時。取得できない場合は null として保存
-            takenAt: takenAt ?? null,
-          })
-        },
-        "create_post"
-      )
+      if (postError) throw new Error(postError)
 
-      if (postError || !id) {
-        const errorMessage = "投稿の作成に失敗しました: " + (postError || "不明なエラー")
-        logError(new Error(errorMessage), { context: "post_creation", error: postError })
-        setError(errorMessage)
-        toast({
-          variant: "destructive",
-          title: "エラー",
-          description: errorMessage,
-        })
-        setLoading(false)
-        return
-      }
-
-      logEvent("post_created", {
-        postId: id,
-        catName: selectedTecho.catName,
-      })
-      toast({
-        variant: "success",
-        title: "投稿完了",
-        description: "投稿が正常に作成されました",
-      })
+      toast({ title: "投稿完了", description: "投稿が保存されました" })
       router.push("/")
       router.refresh()
-    } catch (error: any) {
-      const errorMessage = "エラーが発生しました: " + error.message
-      setError(errorMessage)
-      toast({
-        variant: "destructive",
-        title: "エラー",
-        description: errorMessage,
-      })
+    } catch (err: any) {
+      setError("投稿失敗: " + err.message)
+    } finally {
       setLoading(false)
     }
   }
@@ -371,83 +204,46 @@ export default function CreatePostPage() {
             <CardTitle className="text-2xl text-gray-900">新しい投稿を作成</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* うちの子手帳選択 */}
-            {techoList.length > 0 && (
-              <div className="space-y-2">
-                <Label className="text-gray-900">うちの子手帳を選択</Label>
-                <select
-                  className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-                  value={selectedTecho?.id || ""}
-                  onChange={(e) => {
-                    const techo = techoList.find((t) => t.id === e.target.value)
-                    setSelectedTecho(techo || null)
-                  }}
-                >
-                  {techoList.map((techo) => (
-                    <option key={techo.id} value={techo.id}>
-                      {techo.catName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            
+            {/* 手帳選択 */}
+            <div className="space-y-2">
+              <Label className="text-gray-900">うちの子手帳を選択</Label>
+              <select
+                className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                value={selectedTecho?.id || ""}
+                onChange={(e) => setSelectedTecho(techoList.find(t => t.id === e.target.value) || null)}
+              >
+                {techoList.map((techo) => (
+                  <option key={techo.id} value={techo.id}>{techo.catName}</option>
+                ))}
+              </select>
+            </div>
 
-            {/* 画像アップロード */}
+            {/* 画像アップロード領域 */}
             <div className="space-y-2">
               <Label className="text-gray-900">猫の写真</Label>
-              <p className="text-xs text-gray-600">
-                JPG, PNG, GIF, WebP, HEIC形式、5MB以下（HEICは自動でJPEGに変換されます）
-              </p>
               {isConverting ? (
                 <div className="border-2 border-dashed border-salmon-200 rounded-lg p-12 text-center">
-                  <div className="animate-spin w-8 h-8 border-4 border-salmon-300 border-t-transparent rounded-full mx-auto mb-4"></div>
-                  <p className="text-gray-600">HEICファイルを変換中...</p>
+                  <div className="animate-spin w-8 h-8 border-4 border-salmon-300 border-t-transparent rounded-full mx-auto mb-4" />
+                  <p>HEIC変換中...</p>
                 </div>
               ) : previewUrl ? (
                 <div className="relative">
-                  <div className="relative w-full aspect-square max-h-[400px] rounded-lg overflow-hidden border-2 border-salmon-200 bg-gray-100">
-                    <Image
-                      src={previewUrl}
-                      alt="プレビュー"
-                      fill
-                      className="object-contain"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    />
+                  <div className="relative w-full aspect-square rounded-lg overflow-hidden border-2 border-salmon-200">
+                    <Image src={previewUrl} alt="Preview" fill className="object-contain" />
                   </div>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-2 right-2"
-                    onClick={handleRemoveImage}
-                  >
+                  <Button variant="destructive" size="icon" className="absolute top-2 right-2" onClick={handleRemoveImage}>
                     <X className="h-4 w-4" />
                   </Button>
-                  {selectedFile && (
-                    <div className="mt-2 text-sm text-gray-600">
-                      ファイルサイズ: {formatFileSize(selectedFile.size)}
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div
-                  className="border-2 border-dashed border-salmon-200 rounded-lg p-12 text-center cursor-pointer hover:bg-salmon-50 transition-colors"
+                  className="border-2 border-dashed border-salmon-200 rounded-lg p-12 text-center cursor-pointer hover:bg-salmon-50"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <Upload className="w-12 h-12 text-salmon-300 mx-auto mb-4" />
-                  <p className="text-gray-700 mb-2">画像をクリックしてアップロード</p>
-                  <p className="text-xs text-gray-600">
-                    JPG, PNG, GIF, WebP, HEIC形式、5MB以下
-                    <br />
-                    （HEICは自動でJPEGに変換されます）
-                  </p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/heic,image/heif"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
+                  <p>画像をクリックしてアップロード</p>
+                  <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleFileSelect} />
                 </div>
               )}
             </div>
@@ -456,25 +252,18 @@ export default function CreatePostPage() {
             {selectedFile && selectedTecho && (
               <div className="flex flex-col items-center gap-4">
                 <div className="relative w-80 h-80 flex items-center justify-center">
-                  <NikukyuButton
-                    onClick={handleGenerateTranslation}
-                    isLoading={isGenerating}
-                  />
+                  <NikukyuButton onClick={handleGenerateTranslation} isLoading={isGenerating} />
                   {isGenerating && (
                     <div className="absolute inset-0 w-full h-full">
                       <PawPrintAnimation count={8} />
                     </div>
                   )}
                 </div>
-                <p className="text-gray-600 text-sm">
-                  {isGenerating
-                    ? "AIが気持ちを翻訳中..."
-                    : "肉球をタップして翻訳開始"}
-                </p>
+                <p className="text-gray-600 text-sm">{isGenerating ? "AIが翻訳中..." : "肉球をタップして翻訳開始"}</p>
               </div>
             )}
 
-            {/* 翻訳結果 */}
+            {/* 翻訳結果表示 */}
             {translation && (
               <div className="space-y-2">
                 <Label className="text-gray-900">翻訳結果</Label>
@@ -484,20 +273,11 @@ export default function CreatePostPage() {
               </div>
             )}
 
-            {error && (
-              <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-                {error}
-              </div>
-            )}
+            {error && <div className="text-sm text-red-500 bg-red-50 p-3 rounded-md">{error}</div>}
 
-            {/* 投稿ボタン */}
             {translation && (
-              <Button
-                onClick={handleSubmit}
-                className="w-full"
-                disabled={loading || isConverting}
-              >
-                {loading || isConverting ? "投稿中..." : "投稿する"}
+              <Button onClick={handleSubmit} className="w-full" disabled={loading}>
+                {loading ? "投稿中..." : "投稿する"}
               </Button>
             )}
           </CardContent>
